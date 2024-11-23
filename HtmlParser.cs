@@ -144,94 +144,63 @@ namespace HtmlParserApp
         }
 
         // Custom Queue Data Structure
-        public class MyQueue<T>
+        public class MyQueue<T> : IEnumerable<T>
         {
-            private class Node
-            {
-                public T Value { get; set; }
-                public Node Next { get; set; }
-                public Node Previous { get; set; }
+            private LinkedList<T> list = new LinkedList<T>();
 
-                public Node(T value)
-                {
-                    Value = value;
-                    Next = null;
-                    Previous = null;
-                }
-            }
+            public int Count => list.Count;
 
-            private Node head;
-            private Node tail;
-            private int count;
-
-            public int Count => count;
+            public bool IsEmpty() => Count == 0;
 
             public void Enqueue(T item)
             {
-                Node newNode = new Node(item);
-                if (IsEmpty())
-                {
-                    head = tail = newNode;
-                }
-                else
-                {
-                    tail.Next = newNode;
-                    newNode.Previous = tail;
-                    tail = newNode;
-                }
-                count++;
+                list.AddLast(item);
             }
 
             public T Dequeue()
             {
                 if (IsEmpty())
-                {
-                    throw new InvalidOperationException("Queue is empty");
-                }
-
-                T value = head.Value;
-                head = head.Next;
-                if (head != null)
-                {
-                    head.Previous = null;
-                }
-                else
-                {
-                    tail = null;
-                }
-                count--;
+                    throw new InvalidOperationException("Queue is empty.");
+                var value = list.First.Value;
+                list.RemoveFirst();
                 return value;
             }
 
             public T Peek()
             {
                 if (IsEmpty())
-                {
-                    throw new InvalidOperationException("Queue is empty");
-                }
-                return head.Value;
+                    throw new InvalidOperationException("Queue is empty.");
+                return list.First.Value;
             }
 
             public T PeekLast()
             {
                 if (IsEmpty())
-                {
-                    throw new InvalidOperationException("Queue is empty");
-                }
-                return tail.Value;
+                    throw new InvalidOperationException("Queue is empty.");
+                return list.Last.Value;
             }
 
-            public bool IsEmpty()
+            public T DequeueLast()
             {
-                return count == 0;
+                if (IsEmpty())
+                    throw new InvalidOperationException("Queue is empty.");
+                var value = list.Last.Value;
+                list.RemoveLast();
+                return value;
             }
 
-            public void Clear()
+            // Implement IEnumerable<T>
+            public IEnumerator<T> GetEnumerator()
             {
-                head = tail = null;
-                count = 0;
+                return list.GetEnumerator();
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
             }
         }
+
 
         public class Tokenizer
         {
@@ -286,18 +255,19 @@ namespace HtmlParserApp
             {
                 HtmlNode root = new HtmlNode { TagName = "root" };
                 HtmlNode currentNode = root;
-                MyQueue<HtmlNode> nodeQueue = new MyQueue<HtmlNode>();
-                nodeQueue.Enqueue(root);
+                MyQueue<HtmlNode> openNodes = new MyQueue<HtmlNode>();
+                openNodes.Enqueue(root);
 
                 foreach (string token in tokens)
                 {
-                    if (string.IsNullOrWhiteSpace(token)) continue;
+                    if (string.IsNullOrWhiteSpace(token))
+                        continue;
 
                     if (token.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase))
                     {
                         // Handle DOCTYPE declaration
-                        HtmlNode doctype = new HtmlNode { TagName = "!DOCTYPE" };
-                        currentNode.Children.Add(doctype);
+                        HtmlNode doctypeNode = new HtmlNode { TagName = "!DOCTYPE" };
+                        currentNode.Children.Add(doctypeNode);
                         continue;
                     }
 
@@ -305,7 +275,6 @@ namespace HtmlParserApp
                     {
                         // Opening tag or void element
                         string tagName = ExtractTagName(token);
-
                         HtmlNode newNode = new HtmlNode
                         {
                             TagName = tagName,
@@ -318,45 +287,22 @@ namespace HtmlParserApp
                         if (!voidElements.Contains(tagName))
                         {
                             currentNode = newNode;
-                            nodeQueue.Enqueue(newNode);
+                            openNodes.Enqueue(newNode);
                         }
                     }
                     else if (token.StartsWith("</"))
                     {
                         // Closing tag
-                        string closingTag = ExtractTagName(token);
+                        string closingTagName = ExtractTagName(token);
 
-                        if (!nodeQueue.IsEmpty() && nodeQueue.PeekLast().TagName.Equals(closingTag, StringComparison.OrdinalIgnoreCase))
+                        if (openNodes.IsEmpty() || !openNodes.PeekLast().TagName.Equals(closingTagName, StringComparison.OrdinalIgnoreCase))
                         {
-                            MyQueue<HtmlNode> tempQueue = new MyQueue<HtmlNode>();
-                            HtmlNode lastNode = null;
-
-                            // Find the matching opening tag
-                            while (!nodeQueue.IsEmpty())
-                            {
-                                lastNode = nodeQueue.Dequeue();
-                                if (lastNode.TagName.Equals(closingTag, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    break;
-                                }
-                                tempQueue.Enqueue(lastNode);
-                            }
-
-                            // Restore the queue except for the closed tag
-                            while (!tempQueue.IsEmpty())
-                            {
-                                nodeQueue.Enqueue(tempQueue.Dequeue());
-                            }
-
-                            if (!nodeQueue.IsEmpty())
-                            {
-                                currentNode = nodeQueue.PeekLast();
-                            }
+                            throw new ParsingException($"Unmatched closing tag: {closingTagName}");
                         }
-                        else
-                        {
-                            throw new ParsingException($"Mismatched closing tag: {closingTag}");
-                        }
+
+                        // Pop the matching node from the queue
+                        HtmlNode matchingNode = openNodes.DequeueLast();
+                        currentNode = matchingNode.Parent ?? root;
                     }
                     else
                     {
@@ -375,14 +321,10 @@ namespace HtmlParserApp
                 }
 
                 // Check for unclosed tags
-                if (nodeQueue.Count > 1) // More than just root node
+                if (openNodes.Count > 1) // More than just the root node
                 {
-                    MyQueue<string> unclosedTags = new MyQueue<string>();
-                    while (nodeQueue.Count > 1)
-                    {
-                        unclosedTags.Enqueue(nodeQueue.Dequeue().TagName);
-                    }
-                    throw new ParsingException($"Unclosed tags found: {string.Join(", ", unclosedTags)}");
+                    throw new ParsingException("Unclosed tags found: " +
+                        string.Join(", ", openNodes.Select(node => node.TagName)));
                 }
 
                 return root;
@@ -390,25 +332,21 @@ namespace HtmlParserApp
 
             private string ExtractTagName(string tag)
             {
-                string temp = tag.TrimStart('<', '/');
-                int endIndex = temp.IndexOfAny(new char[] { ' ', '>', '/' });
-                if (endIndex == -1) endIndex = temp.Length;
-                return temp.Substring(0, endIndex);
+                string tagContent = tag.Trim('<', '>', '/').Split(' ')[0];
+                return tagContent;
             }
 
             private Dictionary<string, string> ParseAttributes(string tag)
             {
-                Dictionary<string, string> attributes = new Dictionary<string, string>();
-
+                var attributes = new Dictionary<string, string>();
                 int startIndex = tag.IndexOf(' ');
-                if (startIndex == -1) return attributes;
 
-                string attributesPart = tag.Substring(startIndex, tag.Length - startIndex - 1).Trim();
+                if (startIndex == -1)
+                    return attributes;
 
+                string attributesPart = tag.Substring(startIndex).Trim('>', ' ');
                 Regex attrRegex = new Regex(@"(\w+)\s*=\s*(?:""([^""]*)""|'([^']*)'|(\S+))");
-                MatchCollection matches = attrRegex.Matches(attributesPart);
-
-                foreach (Match match in matches)
+                foreach (Match match in attrRegex.Matches(attributesPart))
                 {
                     string key = match.Groups[1].Value;
                     string value = match.Groups[2].Value;
@@ -421,6 +359,7 @@ namespace HtmlParserApp
                 return attributes;
             }
         }
+
 
         public class HtmlNode
         {
