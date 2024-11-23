@@ -15,12 +15,15 @@ namespace HtmlParserApp
         public Form1()
         {
             InitializeComponent();
+            InitializeUI();
         }
 
         private void InitializeComponent()
         {
             this.Size = new Size(800, 600);
             this.Text = "HTML Parser";
+            this.BackColor = Color.FromArgb(26, 32, 40); // Set form background to dark color
+
 
             // Input TextBox
             textBoxInput = new TextBox
@@ -73,6 +76,83 @@ namespace HtmlParserApp
             });
         }
 
+        private void InitializeUI()
+        {
+
+            // Cyan-based theme colors
+            Color primaryCyan = Color.FromArgb(0, 188, 212); //Brighter Cyan
+            Color darkCyan = Color.FromArgb(0, 150, 136); //Dark Cyan - Teal
+
+
+            // Input TextBox with cyan theme
+            textBoxInput.BackColor = Color.FromArgb(38, 50, 56); // Dark gray background
+            textBoxInput.ForeColor = Color.WhiteSmoke;        // Light text
+            textBoxInput.BorderStyle = BorderStyle.FixedSingle;
+            textBoxInput.Font = new Font("Consolas", 10);  // Monospace font for code
+            textBoxInput.Padding = new Padding(5);
+
+            // Parse Button with cyan theme
+            buttonParse.BackColor = primaryCyan; // Use primary cyan for button
+            buttonParse.FlatStyle = FlatStyle.Flat;
+            buttonParse.FlatAppearance.BorderSize = 0;
+            buttonParse.ForeColor = Color.White;
+            buttonParse.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            buttonParse.Cursor = Cursors.Hand;
+
+
+            // TreeView with cyan theme and alternating row colors
+            treeViewOutput.BackColor = Color.FromArgb(38, 50, 56); //TreeView Background
+            treeViewOutput.ForeColor = Color.WhiteSmoke; //TreeView Foreground
+            treeViewOutput.DrawMode = TreeViewDrawMode.OwnerDrawAll;
+            treeViewOutput.DrawNode += treeViewOutput_DrawNode;
+
+
+
+            // Error TextBox with cyan theme
+            textBoxError.BackColor = Color.FromArgb(192, 57, 43);  // Red-ish error background (adjust as needed)
+            textBoxError.ForeColor = Color.White;            // White error text
+            textBoxError.BorderStyle = BorderStyle.FixedSingle;
+            textBoxError.Font = new Font("Segoe UI", 9);
+            textBoxError.Padding = new Padding(5);
+
+
+
+        }
+
+        // Event handler for custom TreeView drawing
+        // Custom TreeView drawing with alternating row colors and cyan highlight
+        private void treeViewOutput_DrawNode(object sender, DrawTreeNodeEventArgs e)
+        {
+            if (e.Node == null) return;
+
+            // Set the background color based on even/odd rows
+            Color backColor = e.Node.Index % 2 == 0 ? Color.FromArgb(38, 50, 56) : Color.FromArgb(53, 73, 94); //Alternating dark and slightly lighter color
+
+            if ((e.State & TreeNodeStates.Selected) != 0)
+            {
+                // Highlight selected node with cyan
+                backColor = Color.FromArgb(0, 128, 128); // Change background color when selected to a darker cyan
+                e.Graphics.FillRectangle(Brushes.DarkCyan, e.Node.Bounds); // Fill the background of the selected node
+                TextRenderer.DrawText(e.Graphics, e.Node.Text, e.Node.TreeView.Font, e.Bounds, Color.White, TextFormatFlags.GlyphOverhangPadding);
+                return; // Prevent default drawing if selected
+            }
+
+
+            // Draw the background
+            using (Brush backgroundBrush = new SolidBrush(backColor))
+            {
+                e.Graphics.FillRectangle(backgroundBrush, e.Bounds);
+            }
+
+            // Draw the node text
+            TextRenderer.DrawText(e.Graphics, e.Node.Text, e.Node.NodeFont ?? e.Node.TreeView.Font,
+                e.Bounds, Color.WhiteSmoke, TextFormatFlags.GlyphOverhangPadding); //Lighter Color for text
+
+
+
+
+            e.DrawDefault = false;
+        }
         private void TextBoxInput_TextChanged(object sender, EventArgs e)
         {
             buttonParse.Enabled = !string.IsNullOrEmpty(textBoxInput.Text);
