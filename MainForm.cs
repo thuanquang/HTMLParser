@@ -24,6 +24,7 @@ namespace HTMLParserApp
 
         private void InitializeComponent()
         {
+            
             // Create components
             components = new Container();
 
@@ -74,26 +75,17 @@ namespace HTMLParserApp
             Controls.Add(htmlInputTextBox);
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && (components != null))
-            {
-                components.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
         private void ParseButton_Click(object sender, EventArgs e)
         {
             try
             {
                 string htmlContent = htmlInputTextBox.Text;
 
-                // Parse using custom queue
-                var parseResult = ParseHtmlWithQueue(htmlContent);
+                // Parse using custom queue (refactored method)
+                var parseResult = ParseHtmlWithCustomQueue(htmlContent);
                 parseOutputTextBox.Text = parseResult;
 
-                // Local rendering
+                // Local rendering (no changes here)
                 RenderHtmlLocally(htmlContent);
             }
             catch (Exception ex)
@@ -102,45 +94,62 @@ namespace HTMLParserApp
             }
         }
 
-        private string ParseHtmlWithQueue(string htmlContent)
+        // Refactored parsing method using CustomQueue
+        private string ParseHtmlWithCustomQueue(string htmlContent)
         {
             var doc = new HtmlAgilityPack.HtmlDocument();
             doc.LoadHtml(htmlContent);
 
-            var elementQueue = new CustomQueue<HtmlNode>();
+            var queue = new CustomQueue<HtmlNode>();
             var outputBuilder = new StringBuilder();
 
-            // Initial enqueue of root document node
-            elementQueue.Enqueue(doc.DocumentNode);
+            // Enqueue the root node
+            queue.Enqueue(doc.DocumentNode);
 
-            while (elementQueue.Size > 0)
+            while (!queue.IsEmpty())
             {
-                var currentNode = elementQueue.Dequeue();
+                // Dequeue a node for processing
+                var node = queue.Dequeue();
 
-                // Process current node
-                if (!string.IsNullOrWhiteSpace(currentNode.Name))
+                // Add element name to output
+                outputBuilder.AppendLine($"Element: {node.Name}");
+
+                // Add attributes to output
+                foreach (var attr in node.Attributes)
                 {
-                    outputBuilder.AppendLine($"Element: {currentNode.Name}");
+                    outputBuilder.AppendLine($"  Attribute: {attr.Name} = {attr.Value}");
+                }
 
-                    // Add attributes
-                    foreach (var attr in currentNode.Attributes)
+                // Enqueue child nodes in reverse order
+                for (int i = node.ChildNodes.Count - 1; i >= 0; i--)
+                {
+                    var child = node.ChildNodes[i];
+                    if (child.NodeType == HtmlNodeType.Element)
                     {
-                        outputBuilder.AppendLine($"  Attribute: {attr.Name} = {attr.Value}");
+                        queue.Enqueue(child);
                     }
                 }
 
-                // Enqueue child nodes
-                foreach (var childNode in currentNode.ChildNodes)
+                // Add text nodes to output (if any)
+                if (node.HasChildNodes)
                 {
-                    if (childNode.NodeType == HtmlNodeType.Element)
+                    foreach (var child in node.ChildNodes)
                     {
-                        elementQueue.Enqueue(childNode);
+                        if (child.NodeType == HtmlNodeType.Text)
+                        {
+                            string text = ((HtmlTextNode)child).Text.Trim();
+                            if (!string.IsNullOrEmpty(text))
+                            {
+                                outputBuilder.AppendLine($"  Text: {text}");
+                            }
+                        }
                     }
                 }
             }
 
             return outputBuilder.ToString();
         }
+
 
         private void RenderHtmlLocally(string htmlContent)
         {
