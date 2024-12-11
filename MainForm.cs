@@ -102,48 +102,40 @@ namespace HTMLParserApp
 
             var queue = new CustomQueue<HtmlNode>();
             var outputBuilder = new StringBuilder();
+            var depth = new Dictionary<HtmlNode, int>(); // Keep track of node depth
 
-            // Enqueue the root node
+            // Enqueue the root node with depth 0
             queue.Enqueue(doc.DocumentNode);
+            depth[doc.DocumentNode] = 0;
 
             while (!queue.IsEmpty())
             {
                 // Dequeue a node for processing
                 var node = queue.Dequeue();
+                int currentDepth = depth[node];
+
+                // Add indentation based on depth
+                outputBuilder.Append(' ', currentDepth * 2);
 
                 // Add element name to output
-                outputBuilder.AppendLine($"Element: {node.Name}");
-
-                // Add attributes to output
-                foreach (var attr in node.Attributes)
+                if (node.NodeType == HtmlNodeType.Element)
                 {
-                    outputBuilder.AppendLine($"  Attribute: {attr.Name} = {attr.Value}");
+                    outputBuilder.AppendLine($"Element: {node.Name}");
                 }
-
-                // Enqueue child nodes in reverse order
-                for (int i = node.ChildNodes.Count - 1; i >= 0; i--)
+                else if (node.NodeType == HtmlNodeType.Text)
                 {
-                    var child = node.ChildNodes[i];
-                    if (child.NodeType == HtmlNodeType.Element)
+                    string text = ((HtmlTextNode)node).Text.Trim();
+                    if (!string.IsNullOrEmpty(text))
                     {
-                        queue.Enqueue(child);
+                        outputBuilder.AppendLine($"Text: {text}");
                     }
                 }
 
-                // Add text nodes to output (if any)
-                if (node.HasChildNodes)
+                // Enqueue child nodes (in original order)
+                foreach (var child in node.ChildNodes)
                 {
-                    foreach (var child in node.ChildNodes)
-                    {
-                        if (child.NodeType == HtmlNodeType.Text)
-                        {
-                            string text = ((HtmlTextNode)child).Text.Trim();
-                            if (!string.IsNullOrEmpty(text))
-                            {
-                                outputBuilder.AppendLine($"  Text: {text}");
-                            }
-                        }
-                    }
+                    queue.Enqueue(child);
+                    depth[child] = currentDepth + 1; // Increase depth for children
                 }
             }
 
