@@ -2,19 +2,19 @@
 
 namespace HTMLParserApp
 {
-    public class CustomQueue<T>
+public class CustomQueue<T>
+{
+    private class Node
     {
-        private class Node
-        {
-            public T Data { get; set; }
-            public Node Next { get; set; }
+        public T Data { get; set; }
+        public Node Next { get; set; }
 
-            public Node(T data)
-            {
-                Data = data;
-                Next = null;
-            }
+        public Node(T data)
+        {
+            Data = data;
+            Next = null;
         }
+    }
 
         private Node front;
         private Node rear;

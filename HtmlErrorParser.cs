@@ -50,14 +50,8 @@ public class HtmlErrorParser
 
         // 8. Unescaped Special Characters
         errors.AddRange(DetectUnescapedSpecialCharacters(htmlContent));
-
-        // 9. Missing DOCTYPE
-        if (!DetectDocTypePresence(htmlContent))
-        {
-            errors.Add("Missing DOCTYPE declaration");
-        }
-
-        // 10. Unclosed Comments
+  
+        // 9. Unclosed Comments
         errors.AddRange(DetectUnclosedComments(htmlContent));
 
         return errors;
@@ -266,8 +260,7 @@ public class HtmlErrorParser
         var specialChars = new Dictionary<string, string>
         {
             { "&", "&amp;" },
-            { "<", "&lt;" },
-            { ">", "&gt;" }
+           
         };
 
         foreach (var specialChar in specialChars)
@@ -281,12 +274,6 @@ public class HtmlErrorParser
 
         return errors;
     }
-
-    private bool DetectDocTypePresence(string html)
-    {
-        return Regex.IsMatch(html, @"<!DOCTYPE\s+html", RegexOptions.IgnoreCase);
-    }
-
     private List<string> DetectUnclosedComments(string html)
     {
         var errors = new List<string>();

@@ -130,71 +130,79 @@ namespace HTMLParserApp
         {
             var doc = new HtmlAgilityPack.HtmlDocument();
 
-            // Configure HAP to be less tolerant of errors
-            doc.OptionFixNestedTags = false;  // Don't automatically fix mismatched tags
-            doc.OptionAutoCloseOnEnd = false; // Don't automatically add closing tags
+            // Cấu hình để không tự sửa lỗi HTML
+            doc.OptionFixNestedTags = false;
+            doc.OptionAutoCloseOnEnd = false;
 
-            try
+            // Tải HTML và kiểm tra lỗi phân tích cú pháp
+            doc.LoadHtml(htmlContent);
+
+            if (doc.ParseErrors != null && doc.ParseErrors.Any())
             {
-                doc.LoadHtml(htmlContent);
-
-                // Check for parsing errors
-                if (doc.ParseErrors != null && doc.ParseErrors.Any())
+                StringBuilder errorBuilder = new StringBuilder();
+                errorBuilder.AppendLine("HTML Parsing Errors:");
+                foreach (var error in doc.ParseErrors)
                 {
-                    StringBuilder errorBuilder = new StringBuilder();
-                    errorBuilder.AppendLine("Lỗi phân tích HTML :");
-                    foreach (var error in doc.ParseErrors)
-                    {
-                        errorBuilder.AppendLine($"  Dòng: {error.Line}, vị trí: {error.LinePosition}, Lí do: {error.Reason}");
-                    }
-                    MessageBox.Show(errorBuilder.ToString(), "Lỗi phân tích HTML", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return "Error: Invalid HTML"; // Or handle the error as you see fit
+                    errorBuilder.AppendLine($"  Line: {error.Line}, Position: {error.LinePosition}, Reason: {error.Reason}");
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error loading HTML: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return "Error: Invalid HTML"; // Or handle the error as you see fit
+                MessageBox.Show(errorBuilder.ToString(), "HTML Parsing Errors", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return "Error: Invalid HTML";
             }
 
-            // If no errors, proceed with the parsing logic
+            // Khởi tạo hàng đợi và output
             var queue = new CustomQueue<HtmlNode>();
             var outputBuilder = new StringBuilder();
             var depth = new Dictionary<HtmlNode, int>();
 
+            // Khởi tạo hàng đợi với nút gốc
             queue.Enqueue(doc.DocumentNode);
             depth[doc.DocumentNode] = 0;
 
+            // Duyệt qua cây DOM
             while (!queue.IsEmpty())
             {
                 var node = queue.Dequeue();
                 int currentDepth = depth[node];
 
-                outputBuilder.Append(' ', currentDepth * 2);
-
+                // Hiển thị phần tử (Element)
                 if (node.NodeType == HtmlNodeType.Element)
                 {
+                    outputBuilder.Append(' ', currentDepth * 2); // Thụt lề theo độ sâu
                     outputBuilder.AppendLine($"Element: {node.Name}");
-                }
-                else if (node.NodeType == HtmlNodeType.Text)
-                {
-                    string text = ((HtmlTextNode)node).Text.Trim();
-                    if (!string.IsNullOrEmpty(text))
+
+                    // Xử lý các TextNode ngay sau ElementNode
+                    foreach (var childNode in node.ChildNodes)
                     {
-                        outputBuilder.AppendLine($"Text: {text}");
+                        if (childNode.NodeType == HtmlNodeType.Text)
+                        {
+                            string text = childNode.InnerText.Trim();
+                            if (!string.IsNullOrEmpty(text))
+                            {
+                                outputBuilder.Append(' ', (currentDepth + 1) * 2); // Thụt lề cho TextNode
+                                outputBuilder.AppendLine($"Text: {text}");
+                            }
+                        }
+                        else
+                        {
+                            queue.Enqueue(childNode);
+                            depth[childNode] = currentDepth + 1;
+                        }
                     }
                 }
-
-                foreach (var child in node.ChildNodes)
+                else
                 {
-                    queue.Enqueue(child);
-                    depth[child] = currentDepth + 1;
+                    // Nếu là TextNode, in ra và không enqueue thêm
+                    string text = node.InnerText.Trim();
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        outputBuilder.Append(' ', currentDepth * 2); // Thụt lề cho TextNode
+                        outputBuilder.AppendLine($"Text: {text}");
+                    }
                 }
             }
 
             return outputBuilder.ToString();
         }
-
 
         private void RenderHtmlLocally(string htmlContent)
         {
