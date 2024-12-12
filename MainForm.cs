@@ -98,26 +98,49 @@ namespace HTMLParserApp
         private string ParseHtmlWithCustomQueue(string htmlContent)
         {
             var doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(htmlContent);
 
+            // Configure HAP to be less tolerant of errors
+            doc.OptionFixNestedTags = false;  // Don't automatically fix mismatched tags
+            doc.OptionAutoCloseOnEnd = false; // Don't automatically add closing tags
+
+            try
+            {
+                doc.LoadHtml(htmlContent);
+
+                // Check for parsing errors
+                if (doc.ParseErrors != null && doc.ParseErrors.Any())
+                {
+                    StringBuilder errorBuilder = new StringBuilder();
+                    errorBuilder.AppendLine("Lỗi phân tích HTML :");
+                    foreach (var error in doc.ParseErrors)
+                    {
+                        errorBuilder.AppendLine($"  Dòng: {error.Line}, vị trí: {error.LinePosition}, Lí do: {error.Reason}");
+                    }
+                    MessageBox.Show(errorBuilder.ToString(), "Lỗi phân tích HTML", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return "Error: Invalid HTML"; // Or handle the error as you see fit
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading HTML: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return "Error: Invalid HTML"; // Or handle the error as you see fit
+            }
+
+            // If no errors, proceed with the parsing logic
             var queue = new CustomQueue<HtmlNode>();
             var outputBuilder = new StringBuilder();
-            var depth = new Dictionary<HtmlNode, int>(); // Keep track of node depth
+            var depth = new Dictionary<HtmlNode, int>();
 
-            // Enqueue the root node with depth 0
             queue.Enqueue(doc.DocumentNode);
             depth[doc.DocumentNode] = 0;
 
             while (!queue.IsEmpty())
             {
-                // Dequeue a node for processing
                 var node = queue.Dequeue();
                 int currentDepth = depth[node];
 
-                // Add indentation based on depth
                 outputBuilder.Append(' ', currentDepth * 2);
 
-                // Add element name to output
                 if (node.NodeType == HtmlNodeType.Element)
                 {
                     outputBuilder.AppendLine($"Element: {node.Name}");
@@ -131,11 +154,10 @@ namespace HTMLParserApp
                     }
                 }
 
-                // Enqueue child nodes (in original order)
                 foreach (var child in node.ChildNodes)
                 {
                     queue.Enqueue(child);
-                    depth[child] = currentDepth + 1; // Increase depth for children
+                    depth[child] = currentDepth + 1;
                 }
             }
 
