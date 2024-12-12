@@ -6,9 +6,6 @@ using System.Text;
 using System.Windows.Forms;
 using System.Xml;
 using HtmlAgilityPack;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace HTMLParserApp
 {
@@ -84,44 +81,16 @@ namespace HTMLParserApp
             {
                 string htmlContent = htmlInputTextBox.Text;
 
-                // Create an instance of HtmlErrorParser
-                HtmlErrorParser htmlErrorParser = new HtmlErrorParser();
-
-                // Perform comprehensive error checking first
-                var errors = htmlErrorParser.DetectHtmlErrors(htmlContent);
-
-                // If any critical errors are found, show error dialog and stop processing
-                if (errors.Any())
-                {
-                    // Create a detailed error message
-                    string errorMessage = "Critical HTML Errors Detected:\n\n" +
-                        string.Join("\n", errors.Take(10)); // Show first 10 errors
-
-                    // Show error dialog
-                    DialogResult result = MessageBox.Show(
-                        errorMessage,
-                        "HTML Parsing Stopped",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error
-                    );
-
-                    // Clear output and stop further processing
-                    parseOutputTextBox.Clear();
-                    renderPanel.Controls.Clear();
-                    return; // Exit the method, effectively stopping further processing
-                }
-
-                // If no critical errors, proceed with parsing
+                // Parse using custom queue (refactored method)
                 var parseResult = ParseHtmlWithCustomQueue(htmlContent);
                 parseOutputTextBox.Text = parseResult;
 
-                // Local rendering
+                // Local rendering (no changes here)
                 RenderHtmlLocally(htmlContent);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error parsing HTML: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error parsing HTML: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
