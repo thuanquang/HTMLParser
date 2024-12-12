@@ -18,7 +18,7 @@ namespace HTMLParserApp
         private RichTextBox htmlInputTextBox;
         private RichTextBox parseOutputTextBox;
         private Button parseButton;
-        private Panel renderPanel;
+        private RichTextBox DomTextBox;
 
         public MainForm()
         {
@@ -35,7 +35,7 @@ namespace HTMLParserApp
             htmlInputTextBox = new RichTextBox
             {
                 Dock = DockStyle.Top,
-                Height = 250,
+                Height = 280,
                 Font = new Font("Consolas", 10),
                 ScrollBars = RichTextBoxScrollBars.Vertical
             };
@@ -53,18 +53,21 @@ namespace HTMLParserApp
             // Parse Output TextBox
             parseOutputTextBox = new RichTextBox
             {
-                Dock = DockStyle.Right,
-                Width = 300,
+                Dock = DockStyle.Left,
+                Width = 600,
                 ReadOnly = true,
                 Font = new Font("Consolas", 10)
             };
 
             // Render Panel
-            renderPanel = new Panel
+            DomTextBox = new RichTextBox
             {
-                Dock = DockStyle.Fill,
-                BorderStyle = BorderStyle.FixedSingle
-            };
+                Dock = DockStyle.Right,
+                Width = 600,
+                BorderStyle = BorderStyle.FixedSingle,
+                ReadOnly = true,
+                Font = new Font("Consolas", 10)
+            }; 
 
             // Form properties
             Text = "Local HTML Parser";
@@ -72,7 +75,7 @@ namespace HTMLParserApp
             BackColor = Color.Cyan;
 
             // Add controls to form
-            Controls.Add(renderPanel);
+            Controls.Add(DomTextBox);
             Controls.Add(parseOutputTextBox);
             Controls.Add(parseButton);
             Controls.Add(htmlInputTextBox);
@@ -107,7 +110,7 @@ namespace HTMLParserApp
 
                     // Clear output and stop further processing
                     parseOutputTextBox.Clear();
-                    renderPanel.Controls.Clear();
+                    DomTextBox.Controls.Clear();
                     return; // Exit the method, effectively stopping further processing
                 }
 
@@ -115,8 +118,9 @@ namespace HTMLParserApp
                 var parseResult = ParseHtmlWithCustomQueue(htmlContent);
                 parseOutputTextBox.Text = parseResult;
 
-                // Local rendering
-                RenderHtmlLocally(htmlContent);
+                var parseResult2 = DomTree(htmlContent);
+                DomTextBox.Text = parseResult2;
+
             }
             catch (Exception ex)
             {
@@ -151,23 +155,20 @@ namespace HTMLParserApp
 
             // Khởi tạo hàng đợi và output
             var queue = new CustomQueue<HtmlNode>();
-            var outputBuilder = new StringBuilder();
-            var depth = new Dictionary<HtmlNode, int>();
-
+            var outputBuilder = new StringBuilder();         
             // Khởi tạo hàng đợi với nút gốc
             queue.Enqueue(doc.DocumentNode);
-            depth[doc.DocumentNode] = 0;
-
+        
             // Duyệt qua cây DOM
             while (!queue.IsEmpty())
             {
                 var node = queue.Dequeue();
-                int currentDepth = depth[node];
+              
 
                 // Hiển thị phần tử (Element)
                 if (node.NodeType == HtmlNodeType.Element)
                 {
-                    outputBuilder.Append(' ', currentDepth * 2); // Thụt lề theo độ sâu
+                   
                     outputBuilder.AppendLine($"Element: {node.Name}");
 
                     // Xử lý các TextNode ngay sau ElementNode
@@ -178,14 +179,14 @@ namespace HTMLParserApp
                             string text = childNode.InnerText.Trim();
                             if (!string.IsNullOrEmpty(text))
                             {
-                                outputBuilder.Append(' ', (currentDepth + 1) * 2); // Thụt lề cho TextNode
+                               
                                 outputBuilder.AppendLine($"Text: {text}");
                             }
                         }
                         else
                         {
                             queue.Enqueue(childNode);
-                            depth[childNode] = currentDepth + 1;
+                          
                         }
                     }
                 }
@@ -195,8 +196,8 @@ namespace HTMLParserApp
                     string text = node.InnerText.Trim();
                     if (!string.IsNullOrEmpty(text))
                     {
-                        outputBuilder.Append(' ', currentDepth * 2); // Thụt lề cho TextNode
-                        outputBuilder.AppendLine($"Text: {text}");
+                        
+                        outputBuilder.AppendLine($"{text}");
                     }
                 }
             }
@@ -204,24 +205,74 @@ namespace HTMLParserApp
             return outputBuilder.ToString();
         }
 
-        private void RenderHtmlLocally(string htmlContent)
+        private string DomTree(string htmlContent)
         {
-            // Create a temporary file for rendering
-            string tempHtmlPath = Path.Combine(Path.GetTempPath(), "local_render.html");
-            File.WriteAllText(tempHtmlPath, htmlContent);
+            DomTextBox.Controls.Clear();
+            var doc = new HtmlAgilityPack.HtmlDocument();
 
-            // Clear previous rendering
-            renderPanel.Controls.Clear();
+            // Configure HAP to be less tolerant of errors
+            doc.OptionFixNestedTags = false;  // Don't automatically fix mismatched tags
+            doc.OptionAutoCloseOnEnd = false; // Don't automatically add closing tags
 
-            // Create WebBrowser control for local rendering
-            WebBrowser localBrowser = new WebBrowser
+            try
             {
-                Dock = DockStyle.Fill,
-                ScriptErrorsSuppressed = true
-            };
+                doc.LoadHtml(htmlContent);
 
-            localBrowser.Navigate(tempHtmlPath);
-            renderPanel.Controls.Add(localBrowser);
+                // Check for parsing errors
+                if (doc.ParseErrors != null && doc.ParseErrors.Any())
+                {
+                    StringBuilder errorBuilder = new StringBuilder();
+                    errorBuilder.AppendLine("Lỗi phân tích HTML :");
+                    foreach (var error in doc.ParseErrors)
+                    {
+                        errorBuilder.AppendLine($"  Dòng: {error.Line}, vị trí: {error.LinePosition}, Lí do: {error.Reason}");
+                    }
+                    MessageBox.Show(errorBuilder.ToString(), "Lỗi phân tích HTML", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return "Error: Invalid HTML"; // Or handle the error as you see fit
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading HTML: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return "Error: Invalid HTML"; // Or handle the error as you see fit
+            }
+
+            // If no errors, proceed with the parsing logic
+            var queue = new CustomQueue<HtmlNode>();
+            var outputBuilder = new StringBuilder();
+            var depth = new Dictionary<HtmlNode, int>();
+
+            queue.Enqueue(doc.DocumentNode);
+            depth[doc.DocumentNode] = 0;
+
+            while (!queue.IsEmpty())
+            {
+                var node = queue.Dequeue();
+                int currentDepth = depth[node];
+
+                outputBuilder.Append(' ', currentDepth * 2);
+
+                if (node.NodeType == HtmlNodeType.Element)
+                {
+                    outputBuilder.AppendLine($"Element: {node.Name}");
+                }
+                else if (node.NodeType == HtmlNodeType.Text)
+                {
+                    string text = ((HtmlTextNode)node).Text.Trim();
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        outputBuilder.AppendLine($"Text: {text}");
+                    }
+                }
+
+                foreach (var child in node.ChildNodes)
+                {
+                    queue.Enqueue(child);
+                    depth[child] = currentDepth + 1;
+                }
+            }
+
+            return outputBuilder.ToString();
         }
     }
 }
