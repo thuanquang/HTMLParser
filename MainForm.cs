@@ -87,20 +87,20 @@ namespace HTMLParserApp
             {
                 string htmlContent = htmlInputTextBox.Text;
 
-                // Create an instance of HtmlErrorParser
+                // tạo một instance check lỗi
                 HtmlErrorParser htmlErrorParser = new HtmlErrorParser();
 
-                // Perform comprehensive error checking first
+                // check lỗi
                 var errors = htmlErrorParser.DetectHtmlErrors(htmlContent);
 
-                // If any critical errors are found, show error dialog and stop processing
+                // nếu như có lỗi, hiện thông báo lỗi và ngưng tiến trình hiện tại
                 if (errors.Any())
                 {
-                    // Create a detailed error message
+                    // tạo thông báo lỗi
                     string errorMessage = "Critical HTML Errors Detected:\n\n" +
-                        string.Join("\n", errors.Take(10)); // Show first 10 errors
+                        string.Join("\n", errors.Take(10)); // Show 10 lỗi đầu tiên
 
-                    // Show error dialog
+                    // show thông báo lỗi
                     DialogResult result = MessageBox.Show(
                         errorMessage,
                         "HTML Parsing Stopped",
@@ -108,13 +108,13 @@ namespace HTMLParserApp
                         MessageBoxIcon.Error
                     );
 
-                    // Clear output and stop further processing
+                    // dọn sạch output và dừng xử lí
                     parseOutputTextBox.Clear();
                     DomTextBox.Controls.Clear();
-                    return; // Exit the method, effectively stopping further processing
+                    return; // thoát method, và dừng xử lí
                 }
 
-                // If no critical errors, proceed with parsing
+                // nếu không có lỗi nghiêm trọng, tiếp tục parse
                 var parseResult = ParseHtmlWithCustomQueue(htmlContent);
                 parseOutputTextBox.Text = parseResult;
 
