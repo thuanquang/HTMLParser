@@ -141,18 +141,6 @@ namespace HTMLParserApp
             // Tải HTML và kiểm tra lỗi phân tích cú pháp
             doc.LoadHtml(htmlContent);
 
-            if (doc.ParseErrors != null && doc.ParseErrors.Any())
-            {
-                StringBuilder errorBuilder = new StringBuilder();
-                errorBuilder.AppendLine("HTML Parsing Errors:");
-                foreach (var error in doc.ParseErrors)
-                {
-                    errorBuilder.AppendLine($"  Line: {error.Line}, Position: {error.LinePosition}, Reason: {error.Reason}");
-                }
-                MessageBox.Show(errorBuilder.ToString(), "HTML Parsing Errors", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return "Error: Invalid HTML";
-            }
-
             // Khởi tạo hàng đợi và output
             var queue = new CustomQueue<HtmlNode>();
             var outputBuilder = new StringBuilder();
@@ -212,32 +200,8 @@ namespace HTMLParserApp
 
 
             doc.OptionFixNestedTags = false;
-            doc.OptionAutoCloseOnEnd = false;
-
-            try
-            {
-                doc.LoadHtml(htmlContent);
-
-                // Check for parsing errors
-                if (doc.ParseErrors != null && doc.ParseErrors.Any())
-                {
-                    StringBuilder errorBuilder = new StringBuilder();
-                    errorBuilder.AppendLine("Lỗi phân tích HTML :");
-                    foreach (var error in doc.ParseErrors)
-                    {
-                        errorBuilder.AppendLine($"  Dòng: {error.Line}, vị trí: {error.LinePosition}, Lí do: {error.Reason}");
-                    }
-                    MessageBox.Show(errorBuilder.ToString(), "Lỗi phân tích HTML", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return "Error: Invalid HTML";
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error loading HTML: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return "Error: Invalid HTML";
-            }
-
-
+            doc.OptionAutoCloseOnEnd = false;         
+            doc.LoadHtml(htmlContent);
             var queue = new CustomQueue<HtmlNode>();
             var outputBuilder = new StringBuilder();
             var depth = new Dictionary<HtmlNode, int>();
